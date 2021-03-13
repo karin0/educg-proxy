@@ -1,10 +1,9 @@
 package main
 
 import (
-	"../../utils"
 	"bytes"
 	"context"
-	"crypto/tls"
+	"edu/utils"
 	"encoding/binary"
 	"encoding/json"
 	"flag"
@@ -16,7 +15,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -25,10 +23,14 @@ import (
 	"time"
 )
 
-func writeStdin(w *websocket.Conn, content string) {
-	var a [2]string
-	a[0] = "stdin"
-	a[1] = content
+var wsId string
+
+func write(w *websocket.Conn, content string, typ string) {
+	a := make(map[string]string)
+	// log.Print("Send ", typ, ": ", content)
+	a["data"] = content
+	a["id"] = wsId
+	a["type"] = typ
 
 	err := w.WriteJSON(a)
 	if err != nil {
@@ -36,7 +38,19 @@ func writeStdin(w *websocket.Conn, content string) {
 	}
 }
 
-func readGarbage(ch <-chan uint8) {
+func writeStdin(w *websocket.Conn, content string) {
+	write(w, content, "TERMINAL_DATA")
+}
+
+func writeInit(w *websocket.Conn, typ string) {
+	write(w, "{\"cols\":69,\"rows\":36}", typ)
+}
+
+func writePing(w *websocket.Conn) {
+	write(w, "", "PING")
+}
+
+func readGarbage(ch <-chan uint8, w *websocket.Conn) {
 readGarbage:
 	for {
 		select {
@@ -45,6 +59,19 @@ readGarbage:
 			break readGarbage
 		}
 	}
+
+	writeInit(w, "TERMINAL_RESIZE")
+	/* concurrent writing breaks performance
+	ticker := time.NewTicker(25 * time.Second)
+	go func() {
+		for {
+			select {
+			case <- ticker.C:
+				writePing(w)
+			}
+		}
+	}()
+	 */
 }
 
 func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
@@ -53,14 +80,19 @@ func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
 		if err != nil {
 			panic("读取出错，告辞。" + err.Error())
 		}
-		var j []interface{}
+		var j map[string]interface{}
 		err = json.Unmarshal(message, &j)
 		if err != nil {
 			panic("JSON 解析失败，告辞。" + err.Error())
 		}
-		switch tstr := j[0].(string); tstr {
-		case "stdout":
-			content := j[1].(string)
+		typ := j["type"].(string)
+		if typ == "CONNECT" {
+			wsId = j["id"].(string)
+			writeInit(conn, "TERMINAL_INIT")
+			ch <- 0
+		} else if typ == "TERMINAL_DATA" {
+			content := j["data"].(string)
+			// log.Print("Got: ", content)
 			for i := 0; i < len(content); i++ {
 				recv := content[i]
 				if recv != '\r' && recv != '\n' && recv != '!' && recv != ',' && recv != '?' {
@@ -72,7 +104,7 @@ func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
 }
 
 func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
-	bufferCap := 500
+	bufferCap := 200
 	var buf bytes.Buffer
 	for {
 	recv:
@@ -88,7 +120,7 @@ func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
 			}
 		}
 		if buf.Len() != 0 {
-			writeStdin(conn, buf.String()+"\r")
+			writeStdin(conn, buf.String() + "\r")
 			buf.Reset()
 		}
 	}
@@ -234,53 +266,54 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "请到 https://github.com/t123yh/educg-proxy 查看具体用法。\n")
+		fmt.Fprintf(os.Stderr, "请到 https://github.com/karin0/educg-proxy 查看具体用法。\n")
+		flag.PrintDefaults()
 	}
 
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 {
 		flag.Usage()
 		return
 	}
 
-	var educg_id string
+	var host string
+	var cookie string
 	var bin_loc string
+	var extraQs string
 
-	flag.StringVar(&educg_id, "educg-id", "", "你的 educg 帐号")
+	flag.StringVar(&host, "host", "", "JumpServer 地址")
+	flag.StringVar(&cookie, "cookie", "", "JumpServer 网页端的 Cookies")
 	flag.StringVar(&bin_loc, "bin", "/home/jovyan/server", "你的 server 文件在服务器上的位置")
+	flag.StringVar(&extraQs, "qs", "", "VPN 需要的额外 query string")
 	flag.Parse()
 	configs := processConfigs(flag.Args())
 
-	u := url.URL{Scheme: "wss", Host: "course.educg.net", Path: fmt.Sprintf("/%s/terminals/websocket/1", educg_id)}
-
-	websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	log.Print("正在连接...")
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic("连接失败，告辞。" + err.Error())
-	}
+	c := getWsConn(host, cookie, extraQs)
 
 	downlinkChannel := make(chan uint8, 1024)
 	uplinkChannel := make(chan uint8, 1024)
 
 	go websocketReader(downlinkChannel, c)
-	go websocketWriter(uplinkChannel, c)
+	_ = <- downlinkChannel  // init message
 
 	log.Print("正在读取多余字符...")
-	readGarbage(downlinkChannel)
+	readGarbage(downlinkChannel, c)
 
 	log.Print("正在同步终端状态...")
+	go websocketWriter(uplinkChannel, c)
 
 	writeCmd := func(str string) {
-		for _, b := range str {
-			uplinkChannel <- uint8(b)
-		}
+		writeStdin(c, str)
 	}
 
-	writeCmd(fmt.Sprintf("\r\nstty -echo\r\nchmod +x %s\r\n", bin_loc))
+	writeCmd("\rstty -echo\r")
+	time.Sleep(2 * time.Second)
+
+	writeCmd(fmt.Sprintf("chmod +x %s\r", bin_loc))
 	syncStr := utils.RandStringRunes(16)
-	writeCmd(fmt.Sprintf("exec %s %s\r\n", bin_loc, syncStr))
+	writeCmd(fmt.Sprintf("exec %s %s\r", bin_loc, syncStr))
 
 	// 这个地方应该用 KMP 自动机匹配，但是考虑到同步字符串是随机的，重复的可能性太小，就不用 KMP 了
+	syncStr = "QAQ" + syncStr  // to tolerate echo
 	syncPos := 0
 	for syncPos != len(syncStr) {
 		b := <-downlinkChannel

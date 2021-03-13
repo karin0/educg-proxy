@@ -85,7 +85,7 @@ func main() {
 	cmd.Wait()
 	argsWithoutProg := os.Args[1:]
 
-	print(argsWithoutProg[0]) // 打印同步字串
+	print("QAQ" + argsWithoutProg[0]) // 打印同步字串
 
 	stream := CreateConsoleStream(context.TODO())
 
