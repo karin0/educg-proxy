@@ -1,9 +1,9 @@
-.PHONY all: out/client-linux-64 out/client-windows-64.exe out/server
+.PHONY all: out/client-linux-amd64 out/client-windows-amd64.exe out/server
 
-out/client-linux-64: out cmd/client
+out/client-linux-amd64: out cmd/client
 	go build -o $@ edu/cmd/client
 
-out/client-windows-64.exe: out cmd/client
+out/client-windows-amd64.exe: out cmd/client
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ edu/cmd/client
 
 out/server: out cmd/server

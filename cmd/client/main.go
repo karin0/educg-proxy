@@ -266,7 +266,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "请到 https://github.com/karin0/educg-proxy 查看具体用法。\n")
+		fmt.Fprintf(os.Stderr, "请到 https://github.com/karin0/jumpserver-proxy 查看具体用法。\n")
 		flag.PrintDefaults()
 	}
 

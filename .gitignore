@@ -4,3 +4,4 @@ out
 /client
 /server*
 /*.sh
+/*.bat
