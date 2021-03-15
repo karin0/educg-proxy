@@ -104,7 +104,7 @@ func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
 }
 
 func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
-	bufferCap := 200
+	bufferCap := 4000
 	var buf bytes.Buffer
 	for {
 	recv:
@@ -115,7 +115,7 @@ func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
 				if buf.Len() > bufferCap {
 					break recv
 				}
-			case <-time.After(10 * time.Millisecond):
+			case <-time.After(50 * time.Millisecond):
 				break recv
 			}
 		}
@@ -306,7 +306,7 @@ func main() {
 	}
 
 	writeCmd("\rstty -echo\r")
-	time.Sleep(2 * time.Second)
+	time.Sleep(2500 * time.Millisecond)
 
 	writeCmd(fmt.Sprintf("chmod +x %s\r", bin_loc))
 	syncStr := utils.RandStringRunes(16)
