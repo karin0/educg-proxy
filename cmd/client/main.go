@@ -24,26 +24,28 @@ import (
 )
 
 var wsId string
+var gDebug bool
 
 func write(w *websocket.Conn, content string, typ string) {
-	a := make(map[string]string)
-	// log.Print("Send ", typ, ": ", content)
-	a["data"] = content
-	a["id"] = wsId
-	a["type"] = typ
-
-	err := w.WriteJSON(a)
-	if err != nil {
-		panic(err)
+	if gDebug {
+		log.Print("Send ", typ, ": ", content)
 	}
+
+	panicIf(w.WriteJSON(map[string]string{
+		"data": content,
+		"id": wsId,
+		"type": typ,
+	}))
 }
 
 func writeStdin(w *websocket.Conn, content string) {
 	write(w, content, "TERMINAL_DATA")
 }
 
+var cols, rows int
+
 func writeInit(w *websocket.Conn, typ string) {
-	write(w, "{\"cols\":69,\"rows\":36}", typ)
+	write(w, fmt.Sprintf("{\"cols\":%d,\"rows\":%d}", cols, rows), typ)
 }
 
 func writePing(w *websocket.Conn) {
@@ -86,13 +88,15 @@ func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
 			panic("JSON 解析失败，告辞。" + err.Error())
 		}
 		typ := j["type"].(string)
+		if gDebug {
+			log.Print("Recv ", typ, ": ", j["data"].(string))
+		}
 		if typ == "CONNECT" {
 			wsId = j["id"].(string)
 			writeInit(conn, "TERMINAL_INIT")
 			ch <- 0
 		} else if typ == "TERMINAL_DATA" {
 			content := j["data"].(string)
-			// log.Print("Got: ", content)
 			for i := 0; i < len(content); i++ {
 				recv := content[i]
 				if recv != '\r' && recv != '\n' && recv != '!' && recv != ',' && recv != '?' {
@@ -103,8 +107,7 @@ func websocketReader(ch chan<- uint8, conn *websocket.Conn) {
 	}
 }
 
-func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
-	bufferCap := 4000
+func websocketWriter(ch <-chan uint8, conn *websocket.Conn, bufferCap int, timeout time.Duration) {
 	var buf bytes.Buffer
 	for {
 	recv:
@@ -115,7 +118,7 @@ func websocketWriter(ch <-chan uint8, conn *websocket.Conn) {
 				if buf.Len() > bufferCap {
 					break recv
 				}
-			case <-time.After(50 * time.Millisecond):
+			case <-time.After(timeout):
 				break recv
 			}
 		}
@@ -264,6 +267,8 @@ func listenRemote(mux *smux.Session, cfg mappingConfig) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+	cols = 60 + rand.Intn(10)
+	rows = 30 + rand.Intn(10)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "请到 https://github.com/karin0/jumpserver-proxy 查看具体用法。\n")
@@ -280,10 +285,20 @@ func main() {
 	var bin_loc string
 	var extraQs string
 
+	var syncTimeout int
+	var buffCap int
+	var buffTimeout int
+
 	flag.StringVar(&host, "host", "", "JumpServer 地址")
-	flag.StringVar(&cookie, "cookie", "", "JumpServer 网页端的 Cookies")
+	flag.StringVar(&cookie, "cookie", "", "JumpServer 网页的 Cookies")
 	flag.StringVar(&bin_loc, "bin", "/home/jovyan/server", "你的 server 文件在服务器上的位置")
 	flag.StringVar(&extraQs, "qs", "", "VPN 需要的额外 query string")
+
+	flag.BoolVar(&gDebug, "debug", false, "")
+	flag.IntVar(&syncTimeout, "sync_timeout", 2500, "")
+	flag.IntVar(&buffCap, "buf_size", 4000, "")
+	flag.IntVar(&buffTimeout, "buf_timeout", 50, "")
+
 	flag.Parse()
 	configs := processConfigs(flag.Args())
 
@@ -299,14 +314,14 @@ func main() {
 	readGarbage(downlinkChannel, c)
 
 	log.Print("正在同步终端状态...")
-	go websocketWriter(uplinkChannel, c)
+	go websocketWriter(uplinkChannel, c, buffCap, time.Duration(buffTimeout) * time.Millisecond)
 
 	writeCmd := func(str string) {
 		writeStdin(c, str)
 	}
 
 	writeCmd("\rstty -echo\r")
-	time.Sleep(2500 * time.Millisecond)
+	time.Sleep(time.Duration(syncTimeout) * time.Millisecond)
 
 	writeCmd(fmt.Sprintf("chmod +x %s\r", bin_loc))
 	syncStr := utils.RandStringRunes(16)

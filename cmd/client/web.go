@@ -21,7 +21,6 @@ type any = interface{}
 type jObject = map[string]any
 type jArray = []any
 
-var gPathLead string
 var gCookies string
 var gExtraQs string
 var urlBase string
