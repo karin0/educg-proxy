@@ -57,7 +57,7 @@ func getTargetId() string {
 	return ro["id"].(string)
 }
 
-func getWsConn(host string, cookies string, extraQs string) *websocket.Conn {
+func getWsConn(host, cookies, extraQs string, putUrl bool) *websocket.Conn {
 	gCookies = cookies
 	gExtraQs = extraQs + "&"
 	hu, err := url.Parse(host)
@@ -78,12 +78,16 @@ func getWsConn(host string, cookies string, extraQs string) *websocket.Conn {
 	userId := getUserId(targetId)
 	u := url.URL{Scheme: "wss", Host: hu.Host, Path: strings.Replace(wsPath, "http", "ws", -1), RawQuery: "target_id=" + targetId + "&type=asset&system_user_id=" + userId}
 	rawUrl := u.String()
+	if putUrl {
+		log.Print("正在连接... ", rawUrl)
+	} else {
+		log.Print("正在连接...")
+	}
 
 	h := http.Header{}
 	h.Set("Cookie", cookies)
 
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	log.Print("正在连接... ", rawUrl)
 	conn, _, err := websocket.DefaultDialer.Dial(rawUrl, h)
 	if err != nil {
 		panic("连接失败，告辞。" + err.Error())

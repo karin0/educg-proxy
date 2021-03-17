@@ -302,7 +302,7 @@ func main() {
 	flag.Parse()
 	configs := processConfigs(flag.Args())
 
-	c := getWsConn(host, cookie, extraQs)
+	c := getWsConn(host, cookie, extraQs, gDebug)
 
 	downlinkChannel := make(chan uint8, 1024)
 	uplinkChannel := make(chan uint8, 1024)
