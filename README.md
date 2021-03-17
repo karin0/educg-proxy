@@ -34,6 +34,6 @@ https://seafile.h.t123yh.xyz:3/f/c361b230647345d9a1c8/
 
 ## Hints
 
-- 若实验平台不支持上传文件，可将 Releases 中提供的 `server_gz_b64.txt` 内的文本复制到 ssh 里的编辑器（`cat >file` 或 `vim` 等）中保存，再使用 [decode.py](decode.py) 解码。
+- 若实验平台不支持上传文件，可将 Releases 中提供的 `server.txz.b64.txt` 内的文本复制到 ssh 里的编辑器（`cat >file` 或 `vim` 等）中保存，再使用命令 `base64 -d server.txz.b64.txt | tar xJv` 解码。
 
 - 若使用免客户端 VPN（[d.buaa.edu.cn](https://d.buaa.edu.cn)），需要在 Cookie 中附加 VPN 所需的 Cookie，并在 `-qs` 参数中提供额外的 query string。
