@@ -20,7 +20,7 @@
 
 其中：
 * `JumpServer 地址`：例如 `buaaos.studio` 或 `https://d.buaa.edu.cn/https/77726476706e69737468656265737421f2e2409d282326436a1d8da597` 。
-* `JumpServer 网页 Cookie`：在浏览器中访问 JumpServer 网页，登录后按 F12 打开开发者工具，在 Console 中执行 `document.cookie` 即可查询。该参数需要放在双引号中。
+* `JumpServer 网页 Cookie`：格式形如 `"csrftoken=****; sessionid=****"`，需要放在双引号中。在浏览器中访问 JumpServer 网页，登录后按 F12 打开开发者工具，在 Console 中执行 `document.cookie` 即可查询。若结果中不存在 csrftoken 或 sessionid，可在浏览器的网站设置中查询。
 * `server 文件路径` 是实验平台上你的 server 文件存放位置，如 `/home/19373xxx/server`。如果没有指定，则默认为 `/home/jovyan/server`。请避免该路径中含有空格。
 * `映射 n` 是你自定义的映射规则，格式为 `<本地端口>:<远程 IP>:<远程端口>`。例如，如果希望在本地 127.0.0.1 的 8899 端口通过实验平台访问 192.168.12.34 的 22 端口，则可以写 `8899:192.168.12.34:22`。注意请根据仓库服务器的实际地址填写远程 IP，否则无法连接。如果只知道仓库服务器的域名，可以在实验平台上使用 ping 获取其 IP。git 使用 ssh 协议，远程端口号一般都是 22。若要访问实验平台本身（如传输文件），需要使用实验平台的内网 IP，可通过 JumpServer 网页或 `ip addr` 命令查看。
 
