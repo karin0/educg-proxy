@@ -5,3 +5,5 @@ out
 /server*
 /*.sh
 /*.bat
+test
+run

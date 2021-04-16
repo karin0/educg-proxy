@@ -26,18 +26,46 @@ var gExtraQs string
 var urlBase string
 var client = &http.Client{}
 
+func expiredIf(err error) {
+	if err != nil {
+		panic("Cookie 可能已过期，请尝试重新获取: " + err.Error())
+	}
+}
+
+func expiredIfNot(ok bool) {
+	if !ok {
+		panic("Cookie 可能已过期，请尝试重新获取")
+	}
+}
+
 func requestJson(path string, qs string) any {
 	req, err := http.NewRequest("GET", getUrl(path, qs), nil)
-	panicIf(err)
+	expiredIf(err)
 	req.Header.Add("Cookie", gCookies)
 	resp, err := client.Do(req)
-	panicIf(err)
+	expiredIf(err)
 	var v any
 	err = json.NewDecoder(resp.Body).Decode(&v)
-	if err != nil {
-		panic(err)
-	}
+	expiredIf(err)
 	return v
+}
+
+func asArray(o any) jArray {
+	r, err := o.(jArray)
+	expiredIfNot(err)
+	return r
+}
+
+func asObject(o any) jObject {
+	r, err := o.(jObject)
+	expiredIfNot(err)
+	return r
+}
+
+func asString(o any) string {
+	r, err := o.(string)
+	expiredIfNot(err)
+	return r
 }
 
 func getUrl(path string, qs string) string {
@@ -45,16 +73,16 @@ func getUrl(path string, qs string) string {
 }
 
 func getUserId(targetId string) string {
-	ra := requestJson("/api/v1/perms/users/assets/" + targetId + "/system-users/", "cache_policy=1").(jArray)
-	ro := ra[0].(jObject)
-	return ro["id"].(string)
+	ra := asArray(requestJson("/api/v1/perms/users/assets/" + targetId + "/system-users/", "cache_policy=1"))
+	ro := asObject(ra[0])
+	return asString(ro["id"])
 }
 
 func getTargetId() string {
-	ro := requestJson("/api/v1/perms/users/assets/", "offset=0&limit=15&display=1&draw=1").(jObject)
-	ra := ro["results"].(jArray)
-	ro = ra[0].(jObject)
-	return ro["id"].(string)
+	ro := asObject(requestJson("/api/v1/perms/users/assets/", "offset=0&limit=15&display=1&draw=1"))
+	ra := asArray(ro["results"])
+	ro = asObject(ra[0])
+	return asString(ro["id"])
 }
 
 func getWsConn(host, cookies, extraQs string, putUrl bool) *websocket.Conn {
