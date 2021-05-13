@@ -28,9 +28,9 @@
 ![演示截图](imgs/demo2.png)
 
 ## MIPS 编译器及 gxemul 下载
-~~https://seafile.h.t123yh.xyz:3/f/11083adb98d24354a9e2/ （可能已过时）~~
+~~https://seafile.h.t123yh.xyz:3/f/11083adb98d24354a9e2/~~
 
-~~https://seafile.h.t123yh.xyz:3/f/c361b230647345d9a1c8/ （可能已过时）~~
+~~https://seafile.h.t123yh.xyz:3/f/c361b230647345d9a1c8/~~
 
 https://drive.google.com/file/d/10eK6srq6FvIJJIwMUmy4SMXM0p3h1asA/view
 
