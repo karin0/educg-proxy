@@ -36,4 +36,6 @@ https://seafile.h.t123yh.xyz:3/f/c361b230647345d9a1c8/
 
 - 若实验平台不支持上传文件，可将 Releases 中提供的 `server.txz.b64.txt` 内的文本复制到 ssh 里的编辑器（`cat >file` 或 `vim` 等）中保存，再使用命令 `base64 -d server.txz.b64.txt | tar xJv` 解码。
 
+- 若需要从网络中的其他设备连接到 client，可添加参数 `-bind 0.0.0.0`，并在使用时将本地 IP `127.0.0.1` 替换为运行 client 的设备的 IP。
+
 - 若使用免客户端 VPN（[d.buaa.edu.cn](https://d.buaa.edu.cn)），需要在 Cookie 中附加 VPN 所需的 Cookie，并在 `-qs` 参数中提供额外的 query string。

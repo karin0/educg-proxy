@@ -248,8 +248,8 @@ func processConfigs(args []string) []mappingConfig {
 	return result
 }
 
-func listenRemote(mux *smux.Session, cfg mappingConfig) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.localPort))
+func listenRemote(mux *smux.Session, bindAddr *string, cfg mappingConfig) {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *bindAddr, cfg.localPort))
 	if err != nil {
 		panic(fmt.Sprintf("端口 %d 侦听失败：%s", cfg.localPort, err.Error()))
 	}
@@ -284,6 +284,7 @@ func main() {
 	var cookie string
 	var bin_loc string
 	var extraQs string
+	var bindAddr string
 
 	var syncTimeout int
 	var buffCap int
@@ -298,6 +299,8 @@ func main() {
 	flag.IntVar(&syncTimeout, "sync_timeout", 2500, "")
 	flag.IntVar(&buffCap, "buf_size", 4000, "")
 	flag.IntVar(&buffTimeout, "buf_timeout", 50, "")
+
+	flag.StringVar(&bindAddr, "bind", "127.0.0.1", "待监听的地址")
 
 	flag.Parse()
 	configs := processConfigs(flag.Args())
@@ -350,7 +353,7 @@ func main() {
 	setupCloseHandler(mux)
 
 	for _, cfg := range configs {
-		go listenRemote(mux, cfg)
+		go listenRemote(mux, &bindAddr, cfg)
 	}
 
 	select {}
