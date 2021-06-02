@@ -26,7 +26,7 @@ var gExtraQs string
 var urlBase string
 var client = &http.Client{}
 
-func expiredIf(err error) {
+func expiredOn(err error) {
 	if err != nil {
 		panic("Cookie 可能已过期，请尝试重新获取: " + err.Error())
 	}
@@ -40,13 +40,13 @@ func expiredIfNot(ok bool) {
 
 func requestJson(path string, qs string) any {
 	req, err := http.NewRequest("GET", getUrl(path, qs), nil)
-	expiredIf(err)
+	expiredOn(err)
 	req.Header.Add("Cookie", gCookies)
 	resp, err := client.Do(req)
-	expiredIf(err)
+	expiredOn(err)
 	var v any
 	err = json.NewDecoder(resp.Body).Decode(&v)
-	expiredIf(err)
+	expiredOn(err)
 	return v
 }
 
@@ -78,14 +78,44 @@ func getUserId(targetId string) string {
 	return asString(ro["id"])
 }
 
-func getTargetId() string {
+func getTargetId(target string) (string, *string) {
 	ro := asObject(requestJson("/api/v1/perms/users/assets/", "offset=0&limit=15&display=1&draw=1"))
 	ra := asArray(ro["results"])
-	ro = asObject(ra[0])
-	return asString(ro["id"])
+	n := len(ra)
+	var name *string = nil
+	if n == 0 {
+		log.Fatal("没有可用的主机");
+	} else {
+		if len(target) > 0 {
+			for _, v := range ra {
+				o := asObject(v)
+				if asString(o["hostname"]) == target {
+					ro = o
+					name = &target
+					break
+				}
+			}
+			if name == nil {
+				log.Fatal("未找到主机 " + target)
+			}
+		} else if n > 1 {
+			names := make([]string, n, n)
+			for i, v := range ra {
+				o := asObject(v)
+				names[i] = asString(o["hostname"])
+			}
+			log.Print("找到多个可用的主机：" + strings.Join(names, ", "))
+			log.Fatal("请在参数中使用 -target 显式指定主机")
+		} else {
+			ro = asObject(ra[0])
+			s := asString(ro["name"])
+			name = &s
+		}
+	}
+	return asString(ro["id"]), name
 }
 
-func getWsConn(host, cookies, extraQs string, putUrl bool) *websocket.Conn {
+func getWsConn(host, cookies, extraQs string, putUrl bool, target string) *websocket.Conn {
 	gCookies = cookies
 	gExtraQs = extraQs + "&"
 	hu, err := url.Parse(host)
@@ -102,14 +132,14 @@ func getWsConn(host, cookies, extraQs string, putUrl bool) *websocket.Conn {
 		wsPath = lead + wsPath
 	}
 
-	targetId := getTargetId()
+	targetId, targetName := getTargetId(target)
 	userId := getUserId(targetId)
 	u := url.URL{Scheme: "wss", Host: hu.Host, Path: strings.Replace(wsPath, "http", "ws", -1), RawQuery: "target_id=" + targetId + "&type=asset&system_user_id=" + userId}
 	rawUrl := u.String()
 	if putUrl {
-		log.Print("正在连接... ", rawUrl)
+		log.Print("正在连接到 ", *targetName, "...", rawUrl)
 	} else {
-		log.Print("正在连接...")
+		log.Print("正在连接到 ", *targetName, "...")
 	}
 
 	h := http.Header{}

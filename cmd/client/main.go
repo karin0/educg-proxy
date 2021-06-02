@@ -286,6 +286,8 @@ func main() {
 	var extraQs string
 	var bindAddr string
 
+	var target string
+
 	var syncTimeout int
 	var buffCap int
 	var buffTimeout int
@@ -294,6 +296,8 @@ func main() {
 	flag.StringVar(&cookie, "cookie", "", "JumpServer 网页的 Cookies")
 	flag.StringVar(&bin_loc, "bin", "/home/jovyan/server", "你的 server 文件在服务器上的位置")
 	flag.StringVar(&extraQs, "qs", "", "VPN 需要的额外 query string")
+
+	flag.StringVar(&target, "target", "", "")
 
 	flag.BoolVar(&gDebug, "debug", false, "")
 	flag.IntVar(&syncTimeout, "sync_timeout", 2500, "")
@@ -305,7 +309,7 @@ func main() {
 	flag.Parse()
 	configs := processConfigs(flag.Args())
 
-	c := getWsConn(host, cookie, extraQs, gDebug)
+	c := getWsConn(host, cookie, extraQs, gDebug, target)
 
 	downlinkChannel := make(chan uint8, 1024)
 	uplinkChannel := make(chan uint8, 1024)
